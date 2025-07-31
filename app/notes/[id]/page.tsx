@@ -72,7 +72,7 @@ export default function NotePage() {
         setEditableContent(createEmptyContent())
       }
     }
-  }, [note])
+  }, [note, id])
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
@@ -245,7 +245,7 @@ export default function NotePage() {
                   <CustomMarkdown>{transformedText}</CustomMarkdown>
                 </div>
               ) : (
-                <TailwindAdvancedEditor content={editableContent} onUpdate={handleContentChange} />
+                <TailwindAdvancedEditor key={id} content={editableContent} onUpdate={handleContentChange} />
               )}
               {isTransformationPendingConfirmation && (
                 <div className="absolute top-0 right-0 p-2">
