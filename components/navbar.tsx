@@ -1,6 +1,5 @@
 "use client"
 
-import { Suspense, useId, useState } from "react"
 import { Undo2 } from "lucide-react"
 import { usePathname } from "next/navigation"
 
@@ -18,7 +17,7 @@ export default function Navbar() {
   const isHomePage = pathname === "/"
 
   return (
-    <header className="border-b px-4 md:px-6">
+    <header className="px-4 md:px-6">
       <div className="flex h-16 justify-between items-center gap-4">
         {/* Left side */}
         {!isHomePage && (

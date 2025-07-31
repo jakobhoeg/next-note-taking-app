@@ -5,7 +5,7 @@ export async function initDb(db: PGlite) {
     CREATE TABLE IF NOT EXISTS notes (
       id TEXT PRIMARY KEY,
       title TEXT,
-      content TEXT,
+      content JSONB,
       preview TEXT,
       "timestamp" TIMESTAMP
     );

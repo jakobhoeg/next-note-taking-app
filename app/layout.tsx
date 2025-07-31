@@ -39,7 +39,7 @@ export default function RootLayout({
         >
           <PGliteWrapper>
             <TanstackProvider>
-              <main className="flex flex-col h-[calc(100vh)] ">
+              <main className="flex flex-col h-[calc(100vh)]">
                 <Navbar />
                 {children}
               </main>

@@ -7,19 +7,52 @@ import Link from "next/link"
 import { useNotes } from "@/app/hooks/useNotes"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { AutosizeTextarea } from "@/components/ui/auto-size-text-area"
 import { TransformDropdown } from "../components/transformation-panel"
 import { builtInAI, doesBrowserSupportBuiltInAI } from "@built-in-ai/core"
 import { streamText } from "ai"
 import { cn, generateTransformationPrompt } from "@/lib/utils"
 import { CustomMarkdown } from "@/components/ui/markdown"
 import Footer from "@/components/footer"
-import { Trash2, Undo2 } from "lucide-react"
+import { Trash2 } from "lucide-react"
 import { useDbLoading } from "@/app/pglite-wrapper"
 import { Skeleton } from "@/components/ui/skeleton"
 import NoteSkeleton from "@/components/note-skeleton"
+import { JSONContent } from "novel"
+import TailwindAdvancedEditor from "../components/editor/tailwind-editor"
 
 const DELAY_SAVE = 1000
+
+// Helper function to create empty JSONContent
+const createEmptyContent = (): JSONContent => ({
+  type: "doc",
+  content: []
+});
+
+// Helper function to extract text from JSONContent for transformations
+const extractTextFromContent = (content: JSONContent): string => {
+  if (!content.content || content.content.length === 0) return "";
+
+  const extractText = (node: JSONContent): string => {
+    if (node.text) return node.text;
+    if (node.content) {
+      return node.content.map(extractText).join("");
+    }
+    return "";
+  };
+
+  return content.content.map(extractText).join("\n");
+};
+
+// Helper function to create JSONContent from text
+const createContentFromText = (text: string): JSONContent => ({
+  type: "doc",
+  content: text ? [
+    {
+      type: "paragraph",
+      content: [{ type: "text", text }]
+    }
+  ] : []
+});
 
 export default function NotePage() {
   const router = useRouter()
@@ -30,10 +63,11 @@ export default function NotePage() {
   const { isDbReady } = useDbLoading()
 
   const [editableTitle, setEditableTitle] = useState("")
-  const [editableContent, setEditableContent] = useState("")
+  const [editableContent, setEditableContent] = useState<JSONContent>(createEmptyContent())
   const [isStreaming, setIsStreaming] = useState(false)
-  const [preTransformationContent, setPreTransformationContent] = useState("")
+  const [preTransformationContent, setPreTransformationContent] = useState<JSONContent>(createEmptyContent())
   const [isTransformationPendingConfirmation, setIsTransformationPendingConfirmation] = useState(false)
+  const [transformedText, setTransformedText] = useState("")
 
   const titleDebounceTimeout = useRef<NodeJS.Timeout | null>(null)
   const contentDebounceTimeout = useRef<NodeJS.Timeout | null>(null)
@@ -48,9 +82,11 @@ export default function NotePage() {
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
     setEditableTitle(newTitle)
+
     if (titleDebounceTimeout.current) {
       clearTimeout(titleDebounceTimeout.current)
     }
+
     titleDebounceTimeout.current = setTimeout(async () => {
       if (note && newTitle !== note.title) {
         await updateNote({ id: note.id, updates: { title: newTitle } })
@@ -59,17 +95,19 @@ export default function NotePage() {
     }, DELAY_SAVE)
   }
 
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value
+  const handleContentChange = (newContent: JSONContent) => {
     setEditableContent(newContent)
+
     if (isTransformationPendingConfirmation) {
       setIsTransformationPendingConfirmation(false)
     }
+
     if (contentDebounceTimeout.current) {
       clearTimeout(contentDebounceTimeout.current)
     }
+
     contentDebounceTimeout.current = setTimeout(async () => {
-      if (note && newContent !== note.content) {
+      if (note && JSON.stringify(newContent) !== JSON.stringify(note.content)) {
         await updateNote({
           id: note.id,
           updates: { content: newContent },
@@ -77,11 +115,6 @@ export default function NotePage() {
         toast.success("Note saved!")
       }
     }, DELAY_SAVE)
-  }
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(editableContent)
-    toast.success("Copied to clipboard!")
   }
 
   const handleDelete = async () => {
@@ -97,15 +130,19 @@ export default function NotePage() {
     }
   }
 
-  const handleSaveTransformation = () => {
+  const handleSaveTransformation = async () => {
     setIsTransformationPendingConfirmation(false)
+    const newContent = createContentFromText(transformedText)
+    setEditableContent(newContent)
+
     if (contentDebounceTimeout.current) {
       clearTimeout(contentDebounceTimeout.current)
     }
-    if (note && editableContent !== note.content) {
-      updateNote({
+
+    if (note) {
+      await updateNote({
         id: note.id,
-        updates: { content: editableContent },
+        updates: { content: newContent },
       })
       toast.success("Note saved!")
     }
@@ -114,6 +151,7 @@ export default function NotePage() {
   const handleRejectTransformation = () => {
     setEditableContent(preTransformationContent)
     setIsTransformationPendingConfirmation(false)
+    setTransformedText("")
   }
 
   const handleTransform = async (typeName: string) => {
@@ -138,7 +176,8 @@ export default function NotePage() {
       toast.success("Model downloaded.")
     }
 
-    const prompt = generateTransformationPrompt(typeName, editableContent)
+    const textContent = extractTextFromContent(editableContent)
+    const prompt = generateTransformationPrompt(typeName, textContent)
 
     try {
       setPreTransformationContent(editableContent)
@@ -146,10 +185,12 @@ export default function NotePage() {
         model,
         prompt,
       })
+
       setIsStreaming(true)
-      setEditableContent("")
+      setTransformedText("")
+
       for await (const chunk of textStream) {
-        setEditableContent((prev) => prev + chunk)
+        setTransformedText((prev) => prev + chunk)
       }
     } catch (error) {
       console.error("Error transforming text:", error)
@@ -174,8 +215,9 @@ export default function NotePage() {
   }
 
   return (
-    <div className="flex flex-col h-full w-full">
-      <div className="p-4 flex items-center w-full max-w-4xl mx-auto ">
+    <div className="flex flex-col h-full w-full min-h-0">
+      {/* Title Section - Fixed height */}
+      <div className="flex-shrink-0 p-4 flex items-center w-full max-w-4xl mx-auto">
         {isLoading || !isDbReady ? (
           <Skeleton className="h-8 w-3/4" />
         ) : (
@@ -189,47 +231,46 @@ export default function NotePage() {
         )}
       </div>
 
-      <main className="flex-1 overflow-y-auto  p-4 w-full max-w-4xl mx-auto">
-        {!isDbReady || isLoading ? (
-          <NoteSkeleton />
-        ) : (
-          <div className="flex-1 h-full relative">
-            {isStreaming || isTransformationPendingConfirmation ? (
-              <div
-                className={cn(
-                  "whitespace-pre-line rounded p-2",
-                  isStreaming && "animate-pulse disabled:opacity-100",
-                  isTransformationPendingConfirmation && "border-2 border-primary-foreground bg-muted/10 animate-pulse",
-                )}
-              >
-                <CustomMarkdown>{editableContent}</CustomMarkdown>
-              </div>
-            ) : (
-              <AutosizeTextarea
-                className="whitespace-pre-line rounded focus:outline-none resize-none p-0"
-                value={editableContent}
-                onChange={handleContentChange}
-                spellCheck={true}
-                aria-label="Edit transcription"
-              />
-            )}
-            {isTransformationPendingConfirmation && (
-              <div className="absolute top-0 right-0 p-2">
-                <div className="border bg-white/10 backdrop-blur-md rounded-lg p-3 flex gap-3 items-center">
-                  <Button size="sm" onClick={handleSaveTransformation}>
-                    Accept
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={handleRejectTransformation}>
-                    Reject
-                  </Button>
+      {/* Main Content - Scrollable area */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <main className="h-full overflow-y-auto p-4 w-full max-w-4xl mx-auto">
+          {!isDbReady || isLoading ? (
+            <NoteSkeleton />
+          ) : (
+            <div className="h-full relative">
+              {isStreaming || isTransformationPendingConfirmation ? (
+                <div
+                  className={cn(
+                    "whitespace-pre-line rounded p-2",
+                    isStreaming && "animate-pulse disabled:opacity-100",
+                    isTransformationPendingConfirmation &&
+                    "border-2 border-primary-foreground bg-muted/10 animate-pulse",
+                  )}
+                >
+                  <CustomMarkdown>{transformedText}</CustomMarkdown>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
+              ) : (
+                <TailwindAdvancedEditor content={editableContent} onUpdate={handleContentChange} />
+              )}
+              {isTransformationPendingConfirmation && (
+                <div className="absolute top-0 right-0 p-2">
+                  <div className="border bg-white/10 backdrop-blur-md rounded-lg p-3 flex gap-3 items-center">
+                    <Button size="sm" onClick={handleSaveTransformation}>
+                      Accept
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={handleRejectTransformation}>
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
 
-      <div className="pt-6 pb-2 border-t bg-background w-full flex flex-col gap-2">
+      {/* Footer Section - Fixed at bottom */}
+      <div className="flex-shrink-0 pt-6 pb-2 border-t bg-background w-full flex flex-col gap-2">
         <div className="flex px-4 gap-3 w-full max-w-4xl mx-auto">
           <TransformDropdown onTransform={handleTransform} isStreaming={isStreaming} />
           <Button size="lg" variant="secondary" onClick={handleDelete} className="flex-1">
@@ -239,7 +280,6 @@ export default function NotePage() {
         </div>
         <Footer />
       </div>
-
     </div>
   )
 }

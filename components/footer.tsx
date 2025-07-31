@@ -5,7 +5,7 @@ import { ModeToggle } from './mode-toggle'
 
 export default function Footer() {
   return (
-    <div className="text-xs text-center text-muted-foreground/60 flex items-center justify-center w-full">
+    <div className="text-xs p-2 text-center text-muted-foreground/60 flex items-center justify-center w-full">
       <p>
         Powered by {" "}
         <Link href="https://developer.chrome.com/docs/ai/built-in" target="_blank" rel="noopener noreferrer" className="font-bold inline-flex items-center underline">

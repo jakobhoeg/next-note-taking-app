@@ -88,7 +88,20 @@ export function UploadModal({ onClose }: { onClose: () => void }) {
             async () => {
               const newNote = await addNote({
                 title,
-                content: transcription,
+                content: {
+                  type: "doc",
+                  content: [
+                    {
+                      type: "paragraph",
+                      content: [
+                        {
+                          type: "text",
+                          text: transcription
+                        }
+                      ]
+                    }
+                  ]
+                }
               });
               router.push(`/notes/${newNote.id}`);
             },

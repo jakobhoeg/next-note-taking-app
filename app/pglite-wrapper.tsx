@@ -45,7 +45,7 @@ export default function PGliteWrapper({ children }: { children: React.ReactNode 
         <PGliteProvider db={db}>{children}</PGliteProvider>
       ) : (
         // Render children but they'll get loading states from useDbLoading
-        <div className="h-[calc(100dvh)] w-full">
+        <div className="h-full w-full">
           {children}
         </div>
       )}
