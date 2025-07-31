@@ -7,6 +7,7 @@ import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useDbLoading } from "@/app/pglite-wrapper";
 import { JSONContent } from "novel";
+import { validateAndSanitizeContent, createEmptyContent } from "@/lib/utils";
 
 export interface Note {
   id: string;
@@ -15,12 +16,6 @@ export interface Note {
   preview: string;
   timestamp: string;
 }
-
-// Helper function to create empty JSONContent
-const createEmptyContent = (): JSONContent => ({
-  type: "doc",
-  content: []
-});
 
 // Helper function to create JSONContent from text
 const createContentFromText = (text: string): JSONContent => ({
@@ -73,9 +68,21 @@ export const useNotes = () => {
         ...note,
         content: (() => {
           try {
-            return JSON.parse(note.content) as JSONContent;
-          } catch {
-            return createContentFromText(note.content);
+            // Handle both string and object content from JSONB
+            const parsedContent = typeof note.content === 'string'
+              ? JSON.parse(note.content)
+              : note.content;
+
+            // Validate the content structure
+            if (parsedContent && typeof parsedContent === 'object' && parsedContent.type === 'doc') {
+              return parsedContent as JSONContent;
+            } else {
+              // If content is invalid, create empty content
+              return createEmptyContent();
+            }
+          } catch (error) {
+            console.error('Error parsing note content:', error);
+            return createEmptyContent();
           }
         })()
       })) || [];
@@ -85,11 +92,12 @@ export const useNotes = () => {
 
   const addNoteMutation = useMutation<Note, Error, { title: string; content?: JSONContent }>({
     mutationFn: async ({ title, content = createEmptyContent() }) => {
+      const validatedContent = validateAndSanitizeContent(content);
       const newNote: Note = {
         id: uuidv4(),
         title,
-        content,
-        preview: extractPreviewFromContent(content),
+        content: validatedContent,
+        preview: extractPreviewFromContent(validatedContent),
         timestamp: new Date().toISOString(),
       };
 
@@ -101,7 +109,7 @@ export const useNotes = () => {
         [
           newNote.id,
           newNote.title,
-          JSON.stringify(newNote.content),
+          newNote.content, // JSONB column can accept objects directly
           newNote.preview,
           newNote.timestamp
         ]
@@ -138,9 +146,21 @@ export const useNotes = () => {
           ...note,
           content: (() => {
             try {
-              return JSON.parse(note.content) as JSONContent;
-            } catch {
-              return createContentFromText(note.content);
+              // Handle both string and object content from JSONB
+              const parsedContent = typeof note.content === 'string'
+                ? JSON.parse(note.content)
+                : note.content;
+
+              // Validate the content structure
+              if (parsedContent && typeof parsedContent === 'object' && parsedContent.type === 'doc') {
+                return parsedContent as JSONContent;
+              } else {
+                // If content is invalid, create empty content
+                return createEmptyContent();
+              }
+            } catch (error) {
+              console.error('Error parsing note content:', error);
+              return createEmptyContent();
             }
           })()
         };
@@ -172,9 +192,21 @@ export const useNotes = () => {
         ...note,
         content: (() => {
           try {
-            return JSON.parse(note.content) as JSONContent;
-          } catch {
-            return createContentFromText(note.content);
+            // Handle both string and object content from JSONB
+            const parsedContent = typeof note.content === 'string'
+              ? JSON.parse(note.content)
+              : note.content;
+
+            // Validate the content structure
+            if (parsedContent && typeof parsedContent === 'object' && parsedContent.type === 'doc') {
+              return parsedContent as JSONContent;
+            } else {
+              // If content is invalid, create empty content
+              return createEmptyContent();
+            }
+          } catch (error) {
+            console.error('Error parsing note content:', error);
+            return createEmptyContent();
           }
         })()
       };
@@ -196,11 +228,12 @@ export const useNotes = () => {
       }
 
       if (updates.content !== undefined) {
+        const validatedContent = validateAndSanitizeContent(updates.content);
         fields.push(`content = $${paramIndex++}`);
-        values.push(JSON.stringify(updates.content));
+        values.push(validatedContent); // JSONB column can accept objects directly
 
         // Auto-update preview when content changes
-        const preview = extractPreviewFromContent(updates.content);
+        const preview = extractPreviewFromContent(validatedContent);
         fields.push(`preview = $${paramIndex++}`);
         values.push(preview);
       }

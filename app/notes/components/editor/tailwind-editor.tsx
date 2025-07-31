@@ -67,8 +67,19 @@ const TailwindAdvancedEditor = ({ content, onUpdate }: TailwindAdvancedEditorPro
           }}
           onCreate={({ editor }) => {
             // Set content when editor is created
-            if (content && JSON.stringify(content) !== JSON.stringify(editor.getJSON())) {
-              editor.commands.setContent(content);
+            try {
+              if (content && JSON.stringify(content) !== JSON.stringify(editor.getJSON())) {
+                // Validate content before setting it
+                if (content.type === 'doc' && Array.isArray(content.content)) {
+                  editor.commands.setContent(content);
+                } else {
+                  console.warn('Invalid content structure, using empty content');
+                  editor.commands.setContent({ type: 'doc', content: [] });
+                }
+              }
+            } catch (error) {
+              console.error('Error setting editor content:', error);
+              editor.commands.setContent({ type: 'doc', content: [] });
             }
           }}
           onUpdate={({ editor }) => {

@@ -10,7 +10,7 @@ import { toast } from "sonner"
 import { TransformDropdown } from "../components/transformation-panel"
 import { builtInAI, doesBrowserSupportBuiltInAI } from "@built-in-ai/core"
 import { streamText } from "ai"
-import { cn, generateTransformationPrompt } from "@/lib/utils"
+import { cn, generateTransformationPrompt, createContentFromText } from "@/lib/utils"
 import { CustomMarkdown } from "@/components/ui/markdown"
 import Footer from "@/components/footer"
 import { Trash2 } from "lucide-react"
@@ -19,14 +19,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import NoteSkeleton from "@/components/note-skeleton"
 import { JSONContent } from "novel"
 import TailwindAdvancedEditor from "../components/editor/tailwind-editor"
+import { createEmptyContent } from "@/lib/utils"
 
 const DELAY_SAVE = 1000
-
-// Helper function to create empty JSONContent
-const createEmptyContent = (): JSONContent => ({
-  type: "doc",
-  content: []
-});
 
 // Helper function to extract text from JSONContent for transformations
 const extractTextFromContent = (content: JSONContent): string => {
@@ -42,17 +37,6 @@ const extractTextFromContent = (content: JSONContent): string => {
 
   return content.content.map(extractText).join("\n");
 };
-
-// Helper function to create JSONContent from text
-const createContentFromText = (text: string): JSONContent => ({
-  type: "doc",
-  content: text ? [
-    {
-      type: "paragraph",
-      content: [{ type: "text", text }]
-    }
-  ] : []
-});
 
 export default function NotePage() {
   const router = useRouter()
@@ -75,7 +59,18 @@ export default function NotePage() {
   useEffect(() => {
     if (note) {
       setEditableTitle(note.title)
-      setEditableContent(note.content)
+      // Validate content before setting it
+      try {
+        if (note.content && note.content.type === 'doc' && Array.isArray(note.content.content)) {
+          setEditableContent(note.content)
+        } else {
+          console.warn('Invalid content structure, using empty content')
+          setEditableContent(createEmptyContent())
+        }
+      } catch (error) {
+        console.error('Error setting note content:', error)
+        setEditableContent(createEmptyContent())
+      }
     }
   }, [note])
 
