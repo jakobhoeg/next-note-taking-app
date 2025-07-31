@@ -166,6 +166,8 @@ export const useNotes = () => {
         };
       },
       enabled: !!db && !!id && isDbReady,
+      refetchOnWindowFocus: true,
+      staleTime: 0,
     });
   };
 
