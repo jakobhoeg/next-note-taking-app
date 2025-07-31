@@ -11,12 +11,10 @@ import {
   type JSONContent,
   handleCommandNavigation,
 } from "novel";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { defaultExtensions } from "./extensions";
 import { Separator } from "@/components/ui/separator";
-import { useNotes } from "@/app/hooks/useNotes";
-import { useParams } from "next/navigation";
 
 import { slashCommand, suggestionItems } from "./slash-command";
 import GenerativeMenuSwitch from "./generative-menu-switch";
@@ -25,20 +23,15 @@ import { NodeSelector } from "./node-selector";
 const extensions = [...defaultExtensions, slashCommand];
 
 interface TailwindAdvancedEditorProps {
+  content: JSONContent;
   onUpdate: (content: JSONContent) => void;
 }
 
-const TailwindAdvancedEditor = ({ onUpdate }: TailwindAdvancedEditorProps) => {
-  const params = useParams();
-  const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { useNoteQuery } = useNotes();
-  const { data: note } = useNoteQuery(id ?? "");
-
+const TailwindAdvancedEditor = ({ content, onUpdate }: TailwindAdvancedEditorProps) => {
   const [saveStatus, setSaveStatus] = useState("Saved");
   const [charsCount, setCharsCount] = useState<number>(0);
   const [openNode, setOpenNode] = useState(false);
   const [openAI, setOpenAI] = useState(false);
-  const [editorInstance, setEditorInstance] = useState<EditorInstance | null>(null);
 
   const debouncedUpdates = useDebouncedCallback(async (editor: EditorInstance) => {
     const json = editor.getJSON();
@@ -46,20 +39,6 @@ const TailwindAdvancedEditor = ({ onUpdate }: TailwindAdvancedEditorProps) => {
     setCharsCount(editor.storage.characterCount?.words() || 0);
     setSaveStatus("Saved");
   }, 500);
-
-  // Update editor content when note data changes
-  useEffect(() => {
-    if (editorInstance && note?.content) {
-      try {
-        const currentContent = editorInstance.getJSON();
-        if (JSON.stringify(currentContent) !== JSON.stringify(note.content)) {
-          editorInstance.commands.setContent(note.content);
-        }
-      } catch (error) {
-        console.error('Error updating editor content:', error);
-      }
-    }
-  }, [note?.content, editorInstance]);
 
   return (
     <div className="relative w-full max-w-screen-lg">
@@ -74,7 +53,7 @@ const TailwindAdvancedEditor = ({ onUpdate }: TailwindAdvancedEditorProps) => {
       <EditorRoot>
         <EditorContent
           immediatelyRender={false}
-          initialContent={note?.content || { type: 'doc', content: [] }}
+          initialContent={content}
           extensions={extensions}
           className="w-full min-h-[400px] p-2"
           editorProps={{
@@ -87,13 +66,12 @@ const TailwindAdvancedEditor = ({ onUpdate }: TailwindAdvancedEditorProps) => {
             },
           }}
           onCreate={({ editor }) => {
-            setEditorInstance(editor);
             // Set content when editor is created
             try {
-              if (note?.content && JSON.stringify(note.content) !== JSON.stringify(editor.getJSON())) {
+              if (content && JSON.stringify(content) !== JSON.stringify(editor.getJSON())) {
                 // Validate content before setting it
-                if (note.content.type === 'doc' && Array.isArray(note.content.content)) {
-                  editor.commands.setContent(note.content);
+                if (content.type === 'doc' && Array.isArray(content.content)) {
+                  editor.commands.setContent(content);
                 } else {
                   console.warn('Invalid content structure, using empty content');
                   editor.commands.setContent({ type: 'doc', content: [] });

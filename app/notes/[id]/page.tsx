@@ -47,6 +47,7 @@ export default function NotePage() {
   const { isDbReady } = useDbLoading()
 
   const [editableTitle, setEditableTitle] = useState("")
+  const [editableContent, setEditableContent] = useState<JSONContent>(createEmptyContent())
   const [isStreaming, setIsStreaming] = useState(false)
   const [preTransformationContent, setPreTransformationContent] = useState<JSONContent>(createEmptyContent())
   const [isTransformationPendingConfirmation, setIsTransformationPendingConfirmation] = useState(false)
@@ -58,6 +59,18 @@ export default function NotePage() {
   useEffect(() => {
     if (note) {
       setEditableTitle(note.title)
+      // Validate content before setting it
+      try {
+        if (note.content && note.content.type === 'doc' && Array.isArray(note.content.content)) {
+          setEditableContent(note.content)
+        } else {
+          console.warn('Invalid content structure, using empty content')
+          setEditableContent(createEmptyContent())
+        }
+      } catch (error) {
+        console.error('Error setting note content:', error)
+        setEditableContent(createEmptyContent())
+      }
     }
   }, [note])
 
@@ -78,6 +91,8 @@ export default function NotePage() {
   }
 
   const handleContentChange = (newContent: JSONContent) => {
+    setEditableContent(newContent)
+
     if (isTransformationPendingConfirmation) {
       setIsTransformationPendingConfirmation(false)
     }
@@ -113,6 +128,7 @@ export default function NotePage() {
   const handleSaveTransformation = async () => {
     setIsTransformationPendingConfirmation(false)
     const newContent = createContentFromText(transformedText)
+    setEditableContent(newContent)
 
     if (contentDebounceTimeout.current) {
       clearTimeout(contentDebounceTimeout.current)
@@ -128,6 +144,7 @@ export default function NotePage() {
   }
 
   const handleRejectTransformation = () => {
+    setEditableContent(preTransformationContent)
     setIsTransformationPendingConfirmation(false)
     setTransformedText("")
   }
@@ -154,11 +171,11 @@ export default function NotePage() {
       toast.success("Model downloaded.")
     }
 
-    const textContent = extractTextFromContent(note?.content || createEmptyContent())
+    const textContent = extractTextFromContent(editableContent)
     const prompt = generateTransformationPrompt(typeName, textContent)
 
     try {
-      setPreTransformationContent(note?.content || createEmptyContent())
+      setPreTransformationContent(editableContent)
       const { textStream } = streamText({
         model,
         prompt,
@@ -228,7 +245,7 @@ export default function NotePage() {
                   <CustomMarkdown>{transformedText}</CustomMarkdown>
                 </div>
               ) : (
-                <TailwindAdvancedEditor onUpdate={handleContentChange} />
+                <TailwindAdvancedEditor content={editableContent} onUpdate={handleContentChange} />
               )}
               {isTransformationPendingConfirmation && (
                 <div className="absolute top-0 right-0 p-2">
