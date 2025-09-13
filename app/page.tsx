@@ -8,8 +8,6 @@ import { ArrowUpRight, BookPlus, Mic2, Upload } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import Footer from "@/components/footer"
-import { Skeleton } from "@/components/ui/skeleton"
-import MainSkeleton from "./notes/components/list-skeleton"
 import ListSkeleton from "./notes/components/list-skeleton"
 import { useRouter } from "next/navigation"
 
