@@ -3,8 +3,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import PGliteWrapper from "./pglite-wrapper";
 import TanstackProvider from "./tanstack-provider";
-import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import Navbar from "@/components/navbar";
+import { SidebarProvider } from "@/components/providers/sidebar";
+import { LeftSidebar } from "@/components/sidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,10 +41,17 @@ export default function RootLayout({
         >
           <PGliteWrapper>
             <TanstackProvider>
-              <main className="flex flex-col h-full">
-                <Navbar />
-                {children}
-              </main>
+              <SidebarProvider
+                defaultOpen={true}
+                className="grid h-dvh grid-rows-[auto_1fr]"
+              >
+                <div className="row-span-2 flex">
+                  <LeftSidebar />
+                  <main className="relative flex flex-1 overflow-auto">
+                    <div className="grid flex-1">{children}</div>
+                  </main>
+                </div>
+              </SidebarProvider>
             </TanstackProvider>
           </PGliteWrapper>
         </ThemeProvider>

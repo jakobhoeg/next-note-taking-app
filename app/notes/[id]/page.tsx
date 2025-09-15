@@ -40,9 +40,9 @@ const extractTextFromContent = (content: JSONContent): string => {
 
 export default function NotePage() {
   const router = useRouter()
-  const params = useParams()
   const { updateNote, deleteNote, useNoteQuery } = useNotes()
-  const id = Array.isArray(params.id) ? params.id[0] : params.id
+  const params = useParams<{ id: string }>();
+  const id = params.id as string;
   const { data: note, isLoading } = useNoteQuery(id ?? "")
   const { isDbReady } = useDbLoading()
 
