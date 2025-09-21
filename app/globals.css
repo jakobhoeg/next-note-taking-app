@@ -163,21 +163,4 @@
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--muted));
   }
-
-  /* Tiptap Placeholder Styles */
-  .ProseMirror p.is-editor-empty:first-child::before {
-    content: attr(data-placeholder);
-    float: left;
-    color: hsl(var(--muted-foreground) / 0.6);
-    pointer-events: none;
-    height: 0;
-  }
-
-  .ProseMirror .is-empty::before {
-    content: attr(data-placeholder);
-    float: left;
-    color: hsl(var(--muted-foreground) / 0.6);
-    pointer-events: none;
-    height: 0;
-  }
 }
